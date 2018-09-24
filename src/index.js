@@ -1,9 +1,11 @@
 const Koa = require('koa');
 const app = new Koa();
 
-app.use((ctx, next) => {
+app.use( (ctx, next) => {
     console.log(1);
-    next();
+    next().then(() => {
+        console.log('bye');
+    });
 });
 
 app.use((ctx, next) => {
