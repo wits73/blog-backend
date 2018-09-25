@@ -1,105 +1,81 @@
-let postId = 1;
+const Post = require('models/post');
+const {ObjectId} = require('mongoose').Types;
 
-const posts = [
-    {
-        id: 1,
-        title: 'title',
-        body: 'contents',
-    }
-];
+exports.checkObjectId = (ctx, next) => {
+    const {id} = ctx.params;
 
-exports.write = (ctx) => {
-    const{
-        title,
-        body
-    } = ctx.request.body;
-
-    postId += 1;
-
-    const post = {id: postId, title, body };
-    posts.push(post);
-    ctx.body = post;
-}
-
-exports.list = (ctx) => {
-    ctx.body = posts;
-}
-
-exports.read = (ctx) => {
-    const{
-        id
-    } = ctx.params;
-
-    const post = posts.find(p => p.id.toString() === id);
-
-    if(!post) {
-        ctx.status = 404;
-        ctx.body = {
-            message: 'Post not exsits'
-        };
-        return;
-    }
-    ctx.body = post;
-}
-
-exports.remove = (ctx) => {
-    const{
-        id
-    } = ctx.params;
-
-    const index = posts.findIndex(p => p.id.toString() === id);
-
-    if(index === -1) {
-        ctx.status = 404;
-        ctx.body = {
-            message: 'Post not exsits'
-        };
-        return;
-    }
-    posts.splice(index,1)
-    ctx.status = 204;
-}
-
-exports.replace = (ctx) => {
-    const{
-        id
-    } = ctx.params;
-
-    const index = posts.findIndex(p => p.id.toString() === id);
-
-    if(index === -1) {
-        ctx.status = 404;
-        ctx.body = {
-            message: 'Post not exsits'
-        };
-        return;
+    if(!ObjectId.isValid(id)){
+        ctx.status = 400;
+        return null;
     }
 
-    posts[index] = {
-        id,
-        ...ctx.request.body
-    };
-    ctx.body = posts[index];
+    return next();
 }
 
-exports.update = (ctx) => {
-    const{
-        id
-    } = ctx.params;
+exports.write = async (ctx) => {
+    const { title, body, tags } = ctx.request.body;
 
-    const index = posts.findIndex(p => p.id.toString() === id);
+    const post = new Post({
+        title, body, tags
+    });
 
-    if(index === -1) {
-        ctx.status = 404;
-        ctx.body = {
-            message: 'Post not exsits'
-        };
-        return;
+    try{
+        await post.save();
+        ctx.body = post;
+    } catch(e) {
+        ctx.throw(e, 500);
     }
+}
 
-    posts[index] = {
-        ...posts[index],
-        ...ctx.request.body
-    };
-    ctx.body = posts[index];
+exports.list = async (ctx) => {
+    try{
+        const posts = await Post.find().exec();
+        ctx.body = posts;
+    } catch (e) {
+        ctx.throw(e, 500);
+    }
+}
+
+exports.read = async (ctx) => {
+    const {id} = ctx.params;
+    try{
+        const post = await Post.findById(id).exec();
+        if(!post){
+            ctx.status = 404;
+            return;
+        }
+        ctx.body = post;
+    } catch (e) {
+        ctx.throw(e, 500);
+    }
+}
+
+exports.remove = async (ctx) => {
+    const {id} = ctx.params;
+    try{
+        await Post.findByIdAndRemove(id).exec();
+        ctx.status = 204;
+    } catch (e) {
+        ctx.throw(e, 500);
+    }
+}
+
+
+
+exports.update = async (ctx) => {
+    const {id} = ctx.params;
+    try{
+        const post = await Post.findByIdAndUpdate(id, ctx.request.body, {
+            new: true
+            //이 값을 설정해야 업데이트된 객체를 반환합니다 . 
+            // 설정하지 않으면 업데이트되기 전의 객체를 반환합니다
+        }).exec();
+        if(!post){
+            ctx.status = 404;
+            return;
+        }
+        ctx.body = post;
+    } catch (e) {
+        ctx.throw(e, 500);
+    }
 }
